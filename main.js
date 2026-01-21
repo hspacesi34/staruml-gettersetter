@@ -92,7 +92,16 @@ function generateConstructor (_class) {
   // Add mandatory attributes as parameters
   _class.attributes.forEach(function (attr) {
     // Check if attribute is mandatory (type not preceded by '?')
-    if (attr.type && !attr.type.startsWith('?')) {
+    var isMandatory = false
+    if (attr.type) {
+      if (typeof attr.type === 'string') {
+        isMandatory = !attr.type.startsWith('?')
+      } else {
+        // Type is an object (another class), so it's mandatory
+        isMandatory = true
+      }
+    }
+    if (isMandatory) {
       var _param = new type.UMLParameter()
       _param.direction = type.UMLParameter.DK_IN
       _param.name = '$' + attr.name
