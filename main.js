@@ -62,7 +62,7 @@ function generateGetterSetter (attr) {
   _setter._parent = _class
   var _param2 = new type.UMLParameter()
   _param2.direction = type.UMLParameter.DK_IN
-  _param2.name = attr.name
+  _param2.name = '$' + attr.name
   _param2.type = attr.type
   _param2._parent = _setter
   _setter.parameters.push(_param2)
