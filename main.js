@@ -85,7 +85,7 @@ function generateConstructor (_class) {
 
   // Constructor
   var _constructor = new type.UMLOperation()
-  _constructor.name = _class.name
+  _constructor.name = '__construct'
   _constructor.visibility = type.UMLModelElement.VK_PUBLIC
   _constructor._parent = _class
 
