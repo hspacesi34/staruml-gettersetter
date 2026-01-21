@@ -1,6 +1,24 @@
 /*
- * Copyright (c) 2014-2018 Minkyu Lee.
- * Modified: Getter, Setter + __construct generation
+ * Copyright (c) 2014-2018 Minkyu Lee. All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
  */
 
 /**
@@ -8,144 +26,71 @@
  */
 function firstUpperCase (name) {
   if (name.length > 0) {
-    return name[0].toUpperCase() + name.substr(1)
+    return name[0].toUpperCase() + name.substr(1, name.length - 1)
   }
   return ''
 }
 
 /**
- * Get real type name (handles UMLTypeRef)
- */
-function getTypeName (attr) {
-  if (!attr.type) return null
-  if (attr.type.type && attr.type.type.name) {
-    return attr.type.type.name
-  }
-  return attr.type.name || null
-}
-
-/**
- * Attribute is required if type does NOT start with '?'
- */
-function isRequiredAttribute (attr) {
-  var typeName = getTypeName(attr)
-  return typeName && !typeName.startsWith('?')
-}
-
-/**
- * Clone type reference with lowercase name (display only)
- */
-function getLowercaseTypeRef (attr) {
-  if (!attr.type) return null
-
-  var ref = new type.UMLTypeRef()
-  ref.type = attr.type.type
-  ref.name = getTypeName(attr).toLowerCase()
-  return ref
-}
-
-/**
- * Generate getter & setter
+ * Generate a getter and a setter for an attribute
  *
  * @param {UMLAttribute} attr
  */
 function generateGetterSetter (attr) {
   var _class = attr._parent
-  var builder = app.repository.getOperationBuilder()
 
+  var builder = app.repository.getOperationBuilder()
   builder.begin('generate getter & setter')
 
-  // ===== Getter =====
+  // Getter
   var _getter = new type.UMLOperation()
   _getter.name = 'get' + firstUpperCase(attr.name)
   _getter.visibility = type.UMLModelElement.VK_PUBLIC
   _getter._parent = _class
-
-  var _getterReturn = new type.UMLParameter()
-  _getterReturn.direction = type.UMLParameter.DK_RETURN
-  _getterReturn.type = getLowercaseTypeRef(attr)
-  _getterReturn._parent = _getter
-
-  _getter.parameters.push(_getterReturn)
-
+  var _param1 = new type.UMLParameter()
+  _param1.direction = type.UMLParameter.DK_RETURN
+  _param1.type = attr.type
+  _param1._parent = _getter
+  _getter.parameters.push(_param1)
   builder.insert(_getter)
   builder.fieldInsert(_class, 'operations', _getter)
 
-  // ===== Setter =====
+  // Setter
   var _setter = new type.UMLOperation()
   _setter.name = 'set' + firstUpperCase(attr.name)
   _setter.visibility = type.UMLModelElement.VK_PUBLIC
   _setter._parent = _class
-
-  var _setterParam = new type.UMLParameter()
-  _setterParam.direction = type.UMLParameter.DK_IN
-  _setterParam.name = '$' + attr.name
-  _setterParam.type = getLowercaseTypeRef(attr)
-  _setterParam._parent = _setter
-
-  _setter.parameters.push(_setterParam)
-
-  // return void
-  var _setterReturn = new type.UMLParameter()
-  _setterReturn.direction = type.UMLParameter.DK_RETURN
-  _setterReturn._parent = _setter
-
-  _setter.parameters.push(_setterReturn)
-
+  var _param2 = new type.UMLParameter()
+  _param2.direction = type.UMLParameter.DK_IN
+  _param2.name = '$' + attr.name
+  _param2.type = attr.type
+  _param2._parent = _setter
+  _setter.parameters.push(_param2)
   builder.insert(_setter)
   builder.fieldInsert(_class, 'operations', _setter)
 
   builder.end()
-  app.repository.doOperation(builder.getOperation())
+  var cmd = builder.getOperation()
+  app.repository.doOperation(cmd)
 }
 
 /**
- * Generate "__construct" with required attributes only
+ * Command Handler for Generating Getters and Setters
  *
- * @param {UMLClassifier} _class
- */
-function generateConstructor (_class) {
-  var builder = app.repository.getOperationBuilder()
-  builder.begin('generate constructor')
-
-  var _ctor = new type.UMLOperation()
-  _ctor.name = '__construct'
-  _ctor.visibility = type.UMLModelElement.VK_PUBLIC
-  _ctor._parent = _class
-
-  _class.attributes.forEach(function (attr) {
-    if (isRequiredAttribute(attr)) {
-      var _param = new type.UMLParameter()
-      _param.direction = type.UMLParameter.DK_IN
-      _param.name = '$' + attr.name
-      _param.type = getLowercaseTypeRef(attr)
-      _param._parent = _ctor
-      _ctor.parameters.push(_param)
-    }
-  })
-
-  // INSERT EVEN IF EMPTY (constructor must exist)
-  builder.insert(_ctor)
-  builder.fieldInsert(_class, 'operations', _ctor)
-
-  builder.end()
-  app.repository.doOperation(builder.getOperation())
-}
-
-/**
- * Command Handler
+ * @param {Element} base
+ * @param {string} path
+ * @param {Object} options
+ * @return {$.Promise}
  */
 function _handleGenerate (base, path, options) {
   var selected = app.selections.getSelectedModels()
-
   selected.forEach(function (e) {
-    if (e instanceof type.UMLClassifier) {
-      generateConstructor(e)
+    if (e instanceof type.UMLAttribute) {
+      generateGetterSetter(e)
+    } else if (e instanceof type.UMLClassifier) {
       e.attributes.forEach(function (attr) {
         generateGetterSetter(attr)
       })
-    } else if (e instanceof type.UMLAttribute) {
-      generateGetterSetter(e)
     }
   })
 }
