@@ -75,6 +75,42 @@ function generateGetterSetter (attr) {
 }
 
 /**
+ * Generate a constructor with mandatory attributes as parameters
+ *
+ * @param {UMLClassifier} _class
+ */
+function generateConstructor (_class) {
+  var builder = app.repository.getOperationBuilder()
+  builder.begin('generate constructor')
+
+  // Constructor
+  var _constructor = new type.UMLOperation()
+  _constructor.name = _class.name
+  _constructor.visibility = type.UMLModelElement.VK_PUBLIC
+  _constructor._parent = _class
+
+  // Add mandatory attributes as parameters
+  _class.attributes.forEach(function (attr) {
+    // Check if attribute is mandatory (type not preceded by '?')
+    if (attr.type && !attr.type.startsWith('?')) {
+      var _param = new type.UMLParameter()
+      _param.direction = type.UMLParameter.DK_IN
+      _param.name = '$' + attr.name
+      _param.type = attr.type
+      _param._parent = _constructor
+      _constructor.parameters.push(_param)
+    }
+  })
+
+  builder.insert(_constructor)
+  builder.fieldInsert(_class, 'operations', _constructor)
+
+  builder.end()
+  var cmd = builder.getOperation()
+  app.repository.doOperation(cmd)
+}
+
+/**
  * Command Handler for Generating Getters and Setters
  *
  * @param {Element} base
@@ -88,6 +124,9 @@ function _handleGenerate (base, path, options) {
     if (e instanceof type.UMLAttribute) {
       generateGetterSetter(e)
     } else if (e instanceof type.UMLClassifier) {
+      // Generate constructor with mandatory attributes
+      generateConstructor(e)
+      // Generate getters and setters
       e.attributes.forEach(function (attr) {
         generateGetterSetter(attr)
       })
