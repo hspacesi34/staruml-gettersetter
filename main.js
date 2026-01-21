@@ -14,20 +14,34 @@ function firstUpperCase (name) {
 }
 
 /**
- * Force type name to lowercase (UML display)
+ * Get real type name (handles UMLTypeRef)
  */
-function normalizeType (umlType) {
-  if (umlType && umlType.name) {
-    umlType.name = umlType.name.toLowerCase()
+function getTypeName (attr) {
+  if (!attr.type) return null
+  if (attr.type.type && attr.type.type.name) {
+    return attr.type.type.name
   }
-  return umlType
+  return attr.type.name || null
 }
 
 /**
  * Attribute is required if type does NOT start with '?'
  */
 function isRequiredAttribute (attr) {
-  return attr.type && attr.type.name && !attr.type.name.startsWith('?')
+  var typeName = getTypeName(attr)
+  return typeName && !typeName.startsWith('?')
+}
+
+/**
+ * Clone type reference with lowercase name (display only)
+ */
+function getLowercaseTypeRef (attr) {
+  if (!attr.type) return null
+
+  var ref = new type.UMLTypeRef()
+  ref.type = attr.type.type
+  ref.name = getTypeName(attr).toLowerCase()
+  return ref
 }
 
 /**
@@ -49,7 +63,7 @@ function generateGetterSetter (attr) {
 
   var _getterReturn = new type.UMLParameter()
   _getterReturn.direction = type.UMLParameter.DK_RETURN
-  _getterReturn.type = normalizeType(attr.type)
+  _getterReturn.type = getLowercaseTypeRef(attr)
   _getterReturn._parent = _getter
 
   _getter.parameters.push(_getterReturn)
@@ -66,7 +80,7 @@ function generateGetterSetter (attr) {
   var _setterParam = new type.UMLParameter()
   _setterParam.direction = type.UMLParameter.DK_IN
   _setterParam.name = '$' + attr.name
-  _setterParam.type = normalizeType(attr.type)
+  _setterParam.type = getLowercaseTypeRef(attr)
   _setterParam._parent = _setter
 
   _setter.parameters.push(_setterParam)
@@ -104,16 +118,15 @@ function generateConstructor (_class) {
       var _param = new type.UMLParameter()
       _param.direction = type.UMLParameter.DK_IN
       _param.name = '$' + attr.name
-      _param.type = normalizeType(attr.type)
+      _param.type = getLowercaseTypeRef(attr)
       _param._parent = _ctor
       _ctor.parameters.push(_param)
     }
   })
 
-  if (_ctor.parameters.length > 0) {
-    builder.insert(_ctor)
-    builder.fieldInsert(_class, 'operations', _ctor)
-  }
+  // INSERT EVEN IF EMPTY (constructor must exist)
+  builder.insert(_ctor)
+  builder.fieldInsert(_class, 'operations', _ctor)
 
   builder.end()
   app.repository.doOperation(builder.getOperation())
@@ -126,14 +139,13 @@ function _handleGenerate (base, path, options) {
   var selected = app.selections.getSelectedModels()
 
   selected.forEach(function (e) {
-    if (e instanceof type.UMLAttribute) {
-      generateGetterSetter(e)
-
-    } else if (e instanceof type.UMLClassifier) {
+    if (e instanceof type.UMLClassifier) {
       generateConstructor(e)
       e.attributes.forEach(function (attr) {
         generateGetterSetter(attr)
       })
+    } else if (e instanceof type.UMLAttribute) {
+      generateGetterSetter(e)
     }
   })
 }
