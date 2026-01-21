@@ -66,6 +66,11 @@ function generateGetterSetter (attr) {
   _param2.type = attr.type
   _param2._parent = _setter
   _setter.parameters.push(_param2)
+  var _returnParam = new type.UMLParameter()
+  _returnParam.direction = type.UMLParameter.DK_RETURN
+  _returnParam.type = 'void'
+  _returnParam._parent = _setter
+  _setter.parameters.push(_returnParam)
   builder.insert(_setter)
   builder.fieldInsert(_class, 'operations', _setter)
 
